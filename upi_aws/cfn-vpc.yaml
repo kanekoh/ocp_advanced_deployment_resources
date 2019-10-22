@@ -325,7 +325,7 @@ Resources:
   #     DestinationCidrBlock: 0.0.0.0/0
   #     NatGatewayId:
   #       Ref: NAT3
-  SecurityGroup:
+  VPCEndpointSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: "Allow access to AWS VPC Endpoint"
@@ -337,7 +337,7 @@ Resources:
     Type: AWS::EC2::VPCEndpoint
     Properties:
       SecurityGroupIds:
-      - !Ref SecurityGroup
+      - !Ref VPCEndpointSecurityGroup
       SubnetIds:
       - !Ref PrivateSubnet
       - !If [DoAz2, !Ref PrivateSubnet2, !Ref "AWS::NoValue"]
@@ -391,3 +391,6 @@ Outputs:
         ",",
         [!Ref PrivateSubnet, !If [DoAz2, !Ref PrivateSubnet2, !Ref "AWS::NoValue"], !If [DoAz3, !Ref PrivateSubnet3, !Ref "AWS::NoValue"]]
       ]
+  AWSVPCEndpointSgId:
+    Description: Security Group ID for the VPC Endpoint
+    Value: !Ref VPCEndpointSecurityGroup
