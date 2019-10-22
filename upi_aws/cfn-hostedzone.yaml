@@ -1,0 +1,52 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Template for OpenShift Cluster Hosted Zone
+
+Parameters:
+  DomainName:
+    AllowedPattern: ^([a-zA-Z][a-zA-Z0-9\-\.]{0,26})$
+    Default: example.com
+    ConstraintDescription: Domain name must be alphanumeric, start with a letter.
+    Description: A short, unique domain name.
+    Type: String
+  VpcId:
+    Description: The VPC-scoped resources will belong to this VPC.
+    Type: AWS::EC2::VPC::Id
+  VpcRegion:
+    Description: The VPC Region
+    Type: String
+    
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: "Network Configuration"
+      Parameters:
+      - DomainName
+      - VpcId
+      - VpcRegion
+    ParameterLabels:
+      DomainName:
+        default: "Domain Name"
+      VpcId:
+        default: "VPC ID"
+      VpcRegion:
+        default: "VPC Region"
+
+Resources:
+  MainDomain:
+    Type: "AWS::Route53::HostedZone"
+    Properties: 
+      HostedZoneConfig: 
+        Comment: "My hosted zone for OpenShift"
+      Name: !Ref DomainName
+      VPCs: 
+        - 
+          VPCId: !Ref VpcId
+          VPCRegion: !Ref VpcRegion
+
+
+Outputs:
+  HostedZoneID:
+    Description: Hosted Zone ID
+    Value: !Ref MainDomain

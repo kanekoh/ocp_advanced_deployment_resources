@@ -1,0 +1,14 @@
+[
+    {
+        "ParameterKey": "DomainName",
+        "ParameterValue": "example.com"
+    },
+    {
+        "ParameterKey": "VpcId",
+        "ParameterValue": "vpc-<random_string>"
+    },
+    {
+        "ParameterKey": "VpcRegion",
+        "ParameterValue": "<region name>"
+    }
+]
