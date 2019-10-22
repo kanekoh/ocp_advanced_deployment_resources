@@ -213,28 +213,28 @@ Resources:
     Properties:
       SubnetId: !Ref PrivateSubnet
       RouteTableId: !Ref PrivateRouteTable
-  NAT:
-    DependsOn:
-    - GatewayToInternet
-    Type: "AWS::EC2::NatGateway"
-    Properties:
-      AllocationId:
-        "Fn::GetAtt":
-        - EIP
-        - AllocationId
-      SubnetId: !Ref PublicSubnet
-  EIP:
-    Type: "AWS::EC2::EIP"
-    Properties:
-      Domain: vpc
-  Route:
-    Type: "AWS::EC2::Route"
-    Properties:
-      RouteTableId:
-        Ref: PrivateRouteTable
-      DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId:
-        Ref: NAT
+  # NAT:
+  #   DependsOn:
+  #   - GatewayToInternet
+  #   Type: "AWS::EC2::NatGateway"
+  #   Properties:
+  #     AllocationId:
+  #       "Fn::GetAtt":
+  #       - EIP
+  #       - AllocationId
+  #     SubnetId: !Ref PublicSubnet
+  # EIP:
+  #   Type: "AWS::EC2::EIP"
+  #   Properties:
+  #     Domain: vpc
+  # Route:
+  #   Type: "AWS::EC2::Route"
+  #   Properties:
+  #     RouteTableId:
+  #       Ref: PrivateRouteTable
+  #     DestinationCidrBlock: 0.0.0.0/0
+  #     NatGatewayId:
+  #       Ref: NAT
   PrivateSubnet2:
     Type: "AWS::EC2::Subnet"
     Condition: DoAz2
@@ -255,31 +255,31 @@ Resources:
     Properties:
       SubnetId: !Ref PrivateSubnet2
       RouteTableId: !Ref PrivateRouteTable2
-  NAT2:
-    DependsOn:
-    - GatewayToInternet
-    Type: "AWS::EC2::NatGateway"
-    Condition: DoAz2
-    Properties:
-      AllocationId:
-        "Fn::GetAtt":
-        - EIP2
-        - AllocationId
-      SubnetId: !Ref PublicSubnet2
-  EIP2:
-    Type: "AWS::EC2::EIP"
-    Condition: DoAz2
-    Properties:
-      Domain: vpc
-  Route2:
-    Type: "AWS::EC2::Route"
-    Condition: DoAz2
-    Properties:
-      RouteTableId:
-        Ref: PrivateRouteTable2
-      DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId:
-        Ref: NAT2
+  # NAT2:
+  #   DependsOn:
+  #   - GatewayToInternet
+  #   Type: "AWS::EC2::NatGateway"
+  #   Condition: DoAz2
+  #   Properties:
+  #     AllocationId:
+  #       "Fn::GetAtt":
+  #       - EIP2
+  #       - AllocationId
+  #     SubnetId: !Ref PublicSubnet2
+  # EIP2:
+  #   Type: "AWS::EC2::EIP"
+  #   Condition: DoAz2
+  #   Properties:
+  #     Domain: vpc
+  # Route2:
+  #   Type: "AWS::EC2::Route"
+  #   Condition: DoAz2
+  #   Properties:
+  #     RouteTableId:
+  #       Ref: PrivateRouteTable2
+  #     DestinationCidrBlock: 0.0.0.0/0
+  #     NatGatewayId:
+  #       Ref: NAT2
   PrivateSubnet3:
     Type: "AWS::EC2::Subnet"
     Condition: DoAz3
@@ -300,31 +300,56 @@ Resources:
     Properties:
       SubnetId: !Ref PrivateSubnet3
       RouteTableId: !Ref PrivateRouteTable3
-  NAT3:
-    DependsOn:
-    - GatewayToInternet
-    Type: "AWS::EC2::NatGateway"
-    Condition: DoAz3
+  # NAT3:
+  #   DependsOn:
+  #   - GatewayToInternet
+  #   Type: "AWS::EC2::NatGateway"
+  #   Condition: DoAz3
+  #   Properties:
+  #     AllocationId:
+  #       "Fn::GetAtt":
+  #       - EIP3
+  #       - AllocationId
+  #     SubnetId: !Ref PublicSubnet3
+  # EIP3:
+  #   Type: "AWS::EC2::EIP"
+  #   Condition: DoAz3
+  #   Properties:
+  #     Domain: vpc
+  # Route3:
+  #   Type: "AWS::EC2::Route"
+  #   Condition: DoAz3
+  #   Properties:
+  #     RouteTableId:
+  #       Ref: PrivateRouteTable3
+  #     DestinationCidrBlock: 0.0.0.0/0
+  #     NatGatewayId:
+  #       Ref: NAT3
+  EC2Endpoint:
+    Type: AWS::EC2::VPCEndpoint
     Properties:
-      AllocationId:
-        "Fn::GetAtt":
-        - EIP3
-        - AllocationId
-      SubnetId: !Ref PublicSubnet3
-  EIP3:
-    Type: "AWS::EC2::EIP"
-    Condition: DoAz3
-    Properties:
-      Domain: vpc
-  Route3:
-    Type: "AWS::EC2::Route"
-    Condition: DoAz3
-    Properties:
-      RouteTableId:
-        Ref: PrivateRouteTable3
-      DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId:
-        Ref: NAT3
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal: '*'
+          Action:
+          - '*'
+          Resource:
+          - '*'
+      RouteTableIds:
+      - !Ref PublicRouteTable
+      - !Ref PrivateRouteTable
+      - !If [DoAz2, !Ref PrivateRouteTable2, !Ref "AWS::NoValue"]
+      - !If [DoAz3, !Ref PrivateRouteTable3, !Ref "AWS::NoValue"]
+      ServiceName: !Join
+      - ''
+      - - com.amazonaws.
+        - !Ref 'AWS::Region'
+        - .s3
+      VpcId: !Ref VPC
+      VpcEndpointType: Interface
+
   S3Endpoint:
     Type: AWS::EC2::VPCEndpoint
     Properties:
