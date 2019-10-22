@@ -325,31 +325,30 @@ Resources:
   #     DestinationCidrBlock: 0.0.0.0/0
   #     NatGatewayId:
   #       Ref: NAT3
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Allow access to AWS VPC Endpoint"
+      VpcId: !Ref VPC
+      SecurityGroupEgress:
+      - CidrIp: 127.0.0.1/32
+        IpProtocol: "-1"
   EC2Endpoint:
     Type: AWS::EC2::VPCEndpoint
     Properties:
-      PolicyDocument:
-        Version: 2012-10-17
-        Statement:
-        - Effect: Allow
-          Principal: '*'
-          Action:
-          - '*'
-          Resource:
-          - '*'
-      RouteTableIds:
-      - !Ref PublicRouteTable
-      - !Ref PrivateRouteTable
-      - !If [DoAz2, !Ref PrivateRouteTable2, !Ref "AWS::NoValue"]
-      - !If [DoAz3, !Ref PrivateRouteTable3, !Ref "AWS::NoValue"]
+      SecurityGroupIds:
+      - !Ref SecurityGroup
+      SubnetIds:
+      - !Ref PrivateSubnet
+      - !If [DoAz2, !Ref PrivateSubnet2, !Ref "AWS::NoValue"]
+      - !If [DoAz3, !Ref PrivateSubnet3, !Ref "AWS::NoValue"]
       ServiceName: !Join
       - ''
       - - com.amazonaws.
         - !Ref 'AWS::Region'
-        - .s3
+        - .ec2
       VpcId: !Ref VPC
       VpcEndpointType: Interface
-
   S3Endpoint:
     Type: AWS::EC2::VPCEndpoint
     Properties:
