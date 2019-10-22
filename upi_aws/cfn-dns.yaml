@@ -69,13 +69,13 @@ Metadata:
         default: "Public Hosted Zone ID"
 
 Resources:
-  ExtApiElb:
-    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
-    Properties:
-      Name: !Join ["-", [!Ref InfrastructureName, "ext"]]
-      IpAddressType: ipv4
-      Subnets: !Ref PublicSubnets
-      Type: network
+  # ExtApiElb:
+  #   Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+  #   Properties:
+  #     Name: !Join ["-", [!Ref InfrastructureName, "ext"]]
+  #     IpAddressType: ipv4
+  #     Subnets: !Ref PublicSubnets
+  #     Type: network
 
   IntApiElb:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
@@ -86,42 +86,42 @@ Resources:
       Subnets: !Ref PrivateSubnets
       Type: network
 
-  IntDns:
-    Type: "AWS::Route53::HostedZone"
-    Properties:
-      HostedZoneConfig:
-        Comment: "Managed by CloudFormation"
-      Name: !Join [".", [!Ref ClusterName, !Ref HostedZoneName]]
-      HostedZoneTags:
-      - Key: Name
-        Value: !Join ["-", [!Ref InfrastructureName, "int"]]
-      - Key: !Join ["", ["kubernetes.io/cluster/", !Ref InfrastructureName]]
-        Value: "owned"
-      VPCs:
-      - VPCId: !Ref VpcId
-        VPCRegion: !Ref "AWS::Region"
+  # IntDns:
+  #   Type: "AWS::Route53::HostedZone"
+  #   Properties:
+  #     HostedZoneConfig:
+  #       Comment: "Managed by CloudFormation"
+  #     Name: !Join [".", [!Ref ClusterName, !Ref HostedZoneName]]
+  #     HostedZoneTags:
+  #     - Key: Name
+  #       Value: !Join ["-", [!Ref InfrastructureName, "int"]]
+  #     - Key: !Join ["", ["kubernetes.io/cluster/", !Ref InfrastructureName]]
+  #       Value: "owned"
+  #     VPCs:
+  #     - VPCId: !Ref VpcId
+  #       VPCRegion: !Ref "AWS::Region"
 
-  ExternalApiServerRecord:
-    Type: AWS::Route53::RecordSetGroup
-    Properties:
-      Comment: Alias record for the API server
-      HostedZoneId: !Ref HostedZoneId
-      RecordSets:
-      - Name:
-          !Join [
-            ".",
-            ["api", !Ref ClusterName, !Join ["", [!Ref HostedZoneName, "."]]],
-          ]
-        Type: A
-        AliasTarget:
-          HostedZoneId: !GetAtt ExtApiElb.CanonicalHostedZoneID
-          DNSName: !GetAtt ExtApiElb.DNSName
+  # ExternalApiServerRecord:
+  #   Type: AWS::Route53::RecordSetGroup
+  #   Properties:
+  #     Comment: Alias record for the API server
+  #     HostedZoneId: !Ref HostedZoneId
+  #     RecordSets:
+  #     - Name:
+  #         !Join [
+  #           ".",
+  #           ["api", !Ref ClusterName, !Join ["", [!Ref HostedZoneName, "."]]],
+  #         ]
+  #       Type: A
+  #       AliasTarget:
+  #         HostedZoneId: !GetAtt ExtApiElb.CanonicalHostedZoneID
+  #         DNSName: !GetAtt ExtApiElb.DNSName
 
   InternalApiServerRecord:
     Type: AWS::Route53::RecordSetGroup
     Properties:
       Comment: Alias record for the API server
-      HostedZoneId: !Ref IntDns
+      HostedZoneId: !Ref HostedZoneId
       RecordSets:
       - Name:
           !Join [
@@ -142,29 +142,29 @@ Resources:
           HostedZoneId: !GetAtt IntApiElb.CanonicalHostedZoneID
           DNSName: !GetAtt IntApiElb.DNSName
 
-  ExternalApiListener:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties:
-      DefaultActions:
-      - Type: forward
-        TargetGroupArn:
-          Ref: ExternalApiTargetGroup
-      LoadBalancerArn:
-        Ref: ExtApiElb
-      Port: 6443
-      Protocol: TCP
+  # ExternalApiListener:
+  #   Type: AWS::ElasticLoadBalancingV2::Listener
+  #   Properties:
+  #     DefaultActions:
+  #     - Type: forward
+  #       TargetGroupArn:
+  #         Ref: ExternalApiTargetGroup
+  #     LoadBalancerArn:
+  #       Ref: ExtApiElb
+  #     Port: 6443
+  #     Protocol: TCP
 
-  ExternalApiTargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Properties:
-      Port: 6443
-      Protocol: TCP
-      TargetType: ip
-      VpcId:
-        Ref: VpcId
-      TargetGroupAttributes:
-      - Key: deregistration_delay.timeout_seconds
-        Value: 60
+  # ExternalApiTargetGroup:
+  #   Type: AWS::ElasticLoadBalancingV2::TargetGroup
+  #   Properties:
+  #     Port: 6443
+  #     Protocol: TCP
+  #     TargetType: ip
+  #     VpcId:
+  #       Ref: VpcId
+  #     TargetGroupAttributes:
+  #     - Key: deregistration_delay.timeout_seconds
+  #       Value: 60
 
   InternalApiListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
@@ -247,13 +247,13 @@ Resources:
                 "elasticloadbalancing:DeregisterTargets",
               ]
             Resource: !Ref InternalServiceTargetGroup
-          - Effect: "Allow"
-            Action:
-              [
-                "elasticloadbalancing:RegisterTargets",
-                "elasticloadbalancing:DeregisterTargets",
-              ]
-            Resource: !Ref ExternalApiTargetGroup
+          # - Effect: "Allow"
+          #   Action:
+          #     [
+          #       "elasticloadbalancing:RegisterTargets",
+          #       "elasticloadbalancing:DeregisterTargets",
+          #     ]
+          #   Resource: !Ref ExternalApiTargetGroup
 
   RegisterNlbIpTargets:
     Type: "AWS::Lambda::Function"
@@ -356,10 +356,10 @@ Resources:
 Outputs:
   PrivateHostedZoneId:
     Description: Hosted zone ID for the private DNS, which is required for private records.
-    Value: !Ref IntDns
-  ExternalApiLoadBalancerName:
-    Description: Full name of the External API load balancer created.
-    Value: !GetAtt ExtApiElb.LoadBalancerFullName
+    Value: !Ref HostedZoneId
+  # ExternalApiLoadBalancerName:
+  #   Description: Full name of the External API load balancer created.
+  #   Value: !GetAtt ExtApiElb.LoadBalancerFullName
   InternalApiLoadBalancerName:
     Description: Full name of the Internal API load balancer created.
     Value: !GetAtt IntApiElb.LoadBalancerFullName
@@ -369,9 +369,9 @@ Outputs:
   RegisterNlbIpTargetsLambda:
     Description: Lambda ARN useful to help register or deregister IP targets for these load balancers.
     Value: !GetAtt RegisterNlbIpTargets.Arn
-  ExternalApiTargetGroupArn:
-    Description: ARN of External API target group.
-    Value: !Ref ExternalApiTargetGroup
+  # ExternalApiTargetGroupArn:
+  #   Description: ARN of External API target group.
+  #   Value: !Ref ExternalApiTargetGroup
   InternalApiTargetGroupArn:
     Description: ARN of Internal API target group.
     Value: !Ref InternalApiTargetGroup
