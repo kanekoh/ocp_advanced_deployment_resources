@@ -1,0 +1,171 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Template for OpenShift Cluster Bootstrap (EC2 Instance, Security Groups and IAM)
+
+Parameters:
+  InfrastructureName:
+    AllowedPattern: ^([a-zA-Z][a-zA-Z0-9\-]{0,26})$
+    MaxLength: 27
+    MinLength: 1
+    ConstraintDescription: Infrastructure name must be alphanumeric, start with a letter, and have a maximum of 27 characters.
+    Description: A short, unique cluster ID used to tag cloud resources and identify items owned or used by the cluster.
+    Type: String
+  RhelAmi:
+    Description: Current Red Hat Enterprise Linux  AMI to use for mirror registry.
+    Type: AWS::EC2::Image::Id
+  AllowedRegistrySshCidr:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|1[0-9]|2[0-9]|3[0-2]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/0-32.
+    Default: 0.0.0.0/0
+    Description: CIDR block to allow SSH access to the registry node.
+    Type: String
+  PublicSubnet:
+    Description: The public subnet to launch the bootstrap node into.
+    Type: AWS::EC2::Subnet::Id
+  VpcId:
+    Description: The VPC-scoped resources will belong to this VPC.
+    Type: AWS::EC2::VPC::Id
+  VpcCidr:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|1[0-9]|2[0-9]|3[0-2]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/0-32.
+    Default: 10.0.0.0/16
+    Description: The VPC Cidr
+    Type: String
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: "Cluster Information"
+      Parameters:
+      - InfrastructureName
+    - Label:
+        default: "Host Information"
+      Parameters:
+      - RhelAmi
+    - Label:
+        default: "Network Configuration"
+      Parameters:
+      - VpcId
+      - AllowedRegistrySshCidr
+      - PublicSubnet
+    ParameterLabels:
+      InfrastructureName:
+        default: "Infrastructure Name"
+      VpcId:
+        default: "VPC ID"
+      AllowedRegistrySshCidr:
+        default: "Allowed SSH Source"
+      PublicSubnet:
+        default: "Public Subnet"
+      RhelAmi:
+        default: "Red Hat Enterprise Linux AMI ID"
+
+Resources:
+  RegistrySecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Mirror Registry Security Group
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: !Ref AllowedRegistrySshCidr
+      - IpProtocol: tcp
+        ToPort: 5000
+        FromPort: 5000
+        CidrIp: !Ref VpcCidr
+      VpcId: !Ref VpcId
+
+  RegistryInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref RhelAmi
+      InstanceType: "i3.large"
+      NetworkInterfaces:
+      - AssociatePublicIpAddress: "true"
+        DeviceIndex: "0"
+        GroupSet:
+        - !Ref "RegistrySecurityGroup"
+        SubnetId: !Ref "PublicSubnet"
+      BlockDeviceMappings:
+      - DeviceName: /dev/sda1
+        Ebs:
+          VolumeSize: 200
+      UserData:
+        Fn::Base64:
+          !Sub |
+            rh_subscription:
+              username: 'hkaneko@redhat.com' # RHNのユーザー名
+              password: 'StudyEnglish1hour.' # RHNのパスワード
+              auto-attach: False # 適切っぽいサブスクリプションを自動的に追加するかどうか
+              add-pool: [ '8a85f99c6901e2240169036aacd366d9' ] # 追加したいサブスクリプションのPool ID
+              disable-repo: [ '*' ]
+              enable-repo:
+              - ''
+            yum install -y wget podman httpd-tools
+            wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-client-linux-4.2.0.tar.gz
+            tar -xzvf openshift-client-linux-4.2.0.tar.gz
+            mv oc /usr/bin/
+            mkdir -p /opt/registry/{auth,certs,data}
+            cd /opt/registry/certs
+            openssl req -newkey rsa:4096 -nodes -sha256 -keyout domain.key -x509 -days 365 -out domain.crt -subj "/C=JP/ST=Tokyo/L=Ebisu/O=Red Hat/CN=mirror.registry.example.com"
+            htpasswd -bBc /opt/registry/auth/htpasswd registry r3dh4t1!
+            podman run --name mirror-registry -d -p 5000:5000 \ 
+              -v /opt/registry/data:/var/lib/registry:z \
+              -v /opt/registry/auth:/auth:z \
+              -e "REGISTRY_AUTH=htpasswd" \
+              -e "REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm" \
+              -e REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd \
+              -v /opt/registry/certs:/certs:z \
+              -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/domain.crt \
+              -e REGISTRY_HTTP_TLS_KEY=/certs/domain.key \
+              docker.io/library/registry:2
+            firewall-cmd --add-port=5000/tcp --zone=internal --permanent
+            firewall-cmd --add-port=5000/tcp --zone=public   --permanent 
+            firewall-cmd --reload
+            cp /opt/registry/certs/domain.crt /etc/pki/ca-trust/source/anchors/
+            update-ca-trust
+            podman login --authfile ~/pullsecret_config.json mirror.registry.example.com:5000
+            export OCP_RELEASE=<release_version> 
+            export LOCAL_REGISTRY='<local_registry_host_name>:<local_registry_host_port>' 
+            export LOCAL_REPOSITORY='<repository_name>' 
+            export PRODUCT_REPO='openshift-release-dev' 
+            export LOCAL_SECRET_JSON='<path_to_pull_secret>' 
+            export RELEASE_NAME="ocp-release"
+
+
+  # RegisterBootstrapApiTarget:
+  #   Condition: DoRegistration
+  #   Type: Custom::NLBRegister
+  #   Properties:
+  #     ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
+  #     TargetArn: !Ref ExternalApiTargetGroupArn
+  #     TargetIp: !GetAtt BootstrapInstance.PrivateIp
+
+  # RegisterBootstrapInternalApiTarget:
+  #   Condition: DoRegistration
+  #   Type: Custom::NLBRegister
+  #   Properties:
+  #     ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
+  #     TargetArn: !Ref InternalApiTargetGroupArn
+  #     TargetIp: !GetAtt BootstrapInstance.PrivateIp
+
+  # RegisterBootstrapInternalServiceTarget:
+  #   Condition: DoRegistration
+  #   Type: Custom::NLBRegister
+  #   Properties:
+  #     ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
+  #     TargetArn: !Ref InternalServiceTargetGroupArn
+  #     TargetIp: !GetAtt BootstrapInstance.PrivateIp
+
+Outputs:
+  RegistrytrapInstanceId:
+    Description: Registry Instance ID.
+    Value: !Ref RegistryInstance
+
+  RegistryPublicIp:
+    Description: The registry node public IP address.
+    Value: !GetAtt RegistryInstance.PublicIp
+
+  RegistryPrivateIp:
+    Description: The registry node private IP address.
+    Value: !GetAtt RegistryInstance.PrivateIp

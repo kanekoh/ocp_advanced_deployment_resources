@@ -1,0 +1,26 @@
+[
+    {
+        "ParameterKey": "InfrastructureName",
+        "ParameterValue": "mycluster-<random_string>"
+    },
+    {
+        "ParameterKey": "RhelAmi",
+        "ParameterValue": "ami-08775b15e44365e0d"
+    },
+    {
+        "ParameterKey": "AllowedRegistrySshCidr",
+        "ParameterValue": "0.0.0.0/0"
+    },
+    {
+        "ParameterKey": "PublicSubnet",
+        "ParameterValue": "subnet-<random_string>"
+    },
+    {
+        "ParameterKey": "VpcId",
+        "ParameterValue": "vpc-<random_string>"
+    },
+    {
+        "ParameterKey": "VpcCidr",
+        "ParameterValue": "10.0.0.0/16"
+    }
+]
